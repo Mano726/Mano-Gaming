@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MANSOUROUNE TISSOLOGO</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Almendra:wght@700&family=Cinzel:wght@700&display=swap');
+
+        :root {
+            --gold: #D4AF37;
+            --deep-blue: #002366;
+            --wine: #722f37;
+        }
+
+        body {
+            margin: 0;
+            background: radial-gradient(circle, var(--deep-blue), #000);
+            color: var(--gold);
+            font-family: 'Almendra', serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* TITRE EN FLAMMES */
+        .fire-title {
+            font-family: 'Cinzel', serif;
+            font-size: 22px;
+            text-align: center;
+            color: #fff;
+            padding: 10px;
+            text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff0080, 0 0 30px #ff0080;
+            animation: burn 1.5s infinite alternate;
+        }
+
+        @keyframes burn {
+            from { text-shadow: 0 0 10px #ff8d00, 0 0 20px #ff8d00, 0 -10px 30px #ff0000; }
+            to { text-shadow: 0 0 20px #ffae00, 0 0 30px #ffae00, 0 -20px 40px #ff4d00; }
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            border-bottom: 3px double var(--gold);
+            width: 100%;
+            background: rgba(0,0,0,0.7);
+        }
+
+        .balance-box {
+            font-size: 28px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 25px auto;
+            max-width: 360px;
+            width: 95%;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: var(--wine);
+            border: 2px solid var(--gold);
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .win-coin { font-size: 30px; animation: spin 1s infinite linear; }
+        .lose-frog { font-size: 40px; }
+        .amount-tag { font-size: 11px; margin-top: 5px; color: #fff; font-weight: bold; }
+
+        @keyframes spin { from {transform: rotateY(0deg);} to {transform: rotateY(360deg);} }
+
+        .panel { width: 90%; max-width: 400px; text-align: center; }
+        
+        input {
+            background: #000;
+            border: 2px solid var(--gold);
+            color: var(--gold);
+            padding: 15px;
+            width: 100%;
+            font-size: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            text-align: center;
+            font-family: 'Cinzel', serif;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            font-family: 'Cinzel', serif;
+        }
+
+        .btn-start { background: var(--gold); color: #000; }
+        .btn-collect { background: #008000; color: #fff; display: none; }
+        #btnReset { background: #444; color: var(--gold); display: none; border: 1px solid var(--gold); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="fire-title">
+            MANSOUROUNE TISSOLOGO <br> 
+            <span style="font-size: 14px;">(T'ES MODI OÙ PAS !??? )</span>
+        </div>
+        <div class="balance-box">Solde: <span id="balance">25000FCFA</span></div>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="panel">
+        <input type="number" id="betInput" placeholder="Mise">
+        <button class="btn btn-start" id="btnStart" onclick="startGame()">Commencer le Défi</button>
+        <button class="btn btn-collect" id="btnCollect" onclick="collectGains()">Récupérer: 0FCFA</button>
+        <button class="btn" id="btnReset" onclick="resetFortune()">🙏 RÉCUPÉRER LES 25000FCFA</button>
+    </div>
+
+    <script>
+        let balance = 25000, currentBet = 0, currentGains = 0, gameActive = false, mines = [];
+
+        function initGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            for (let i = 0; i < 16; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.innerHTML = "⚜️";
+                cell.onclick = () => handleMove(i, cell);
+                grid.appendChild(cell);
+            }
+        }
+
+        function resetFortune() {
+            balance = 25000;
+            updateBalanceUI();
+            document.getElementById('btnReset').style.display = 'none';
+            document.getElementById('btnStart').style.display = 'block';
+        }
+
+        function updateBalanceUI() {
+            document.getElementById('balance').innerText = Math.floor(balance) + "FCFA";
+        }
+
+        function startGame() {
+            let inputVal = parseFloat(document.getElementById('betInput').value);
+            if (isNaN(inputVal) || inputVal > balance || inputVal <= 0) return alert("Mise invalide !");
+
+            currentBet = inputVal;
+            balance -= currentBet;
+            currentGains = 0;
+            gameActive = true;
+            
+            mines = [];
+            while(mines.length < 3) {
+                let r = Math.floor(Math.random() * 16);
+                // La case index 1 (2ème case 1ère ligne) ne peut JAMAIS être une mine
+                if(!mines.includes(r) && r !== 1) mines.push(r);
+            }
+
+            updateBalanceUI();
+            document.getElementById('btnStart').style.display = 'none';
+            document.getElementById('btnCollect').style.display = 'block';
+            updateBtnCollect();
+            initGrid();
+        }
+
+        function handleMove(index, cell) {
+            if (!gameActive || cell.style.background === 'black') return;
+
+            if (mines.includes(index)) {
+                cell.innerHTML = '<span class="lose-frog">🐸</span>';
+                cell.style.background = '#000';
+                gameActive = false;
+                setTimeout(() => { alert("PERDU ! 🐸"); resetUI(); }, 500);
+            } else {
+                let randomWin;
+                if (index === 1) {
+                    randomWin = 10000000; // La triche : 10 millions !
+                } else {
+                    randomWin = Math.floor(Math.random() * (2000 - 50 + 1)) + 50;
+                }
+                
+                currentGains += randomWin;
+                cell.innerHTML = `<span class="win-coin">📀</span><div class="amount-tag">+${randomWin.toLocaleString()}f</div>`;
+                cell.style.background = 'black';
+                cell.style.borderColor = '#00ff00';
+                updateBtnCollect();
+            }
+        }
+
+        function updateBtnCollect() {
+            let total = currentBet + currentGains;
+            document.getElementById('btnCollect').innerText = "RÉCUPÉRER: " + total + "FCFA";
+        }
+
+        function collectGains() {
+            if(!gameActive) return;
+            balance += (currentBet + currentGains);
+            updateBalanceUI();
+            gameActive = false;
+            resetUI();
+        }
+
+        function resetUI() {
+            document.getElementById('btnStart').style.display = 'block';
+            document.getElementById('btnCollect').style.display = 'none';
+            initGrid();
+            if (balance <= 0) document.getElementById('btnReset').style.display = 'block';
+        }
+
+        initGrid();
+    </script>
+</body>
+</html>
